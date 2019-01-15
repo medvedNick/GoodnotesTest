@@ -10,22 +10,22 @@ import XCTest
 @testable import GoodnotesTest
 
 class GoodnotesTestTests: XCTestCase {
-
-    override func setUp() {
+	
+	override func setUp() {
 		
-    }
-
-    override func tearDown() {
+	}
+	
+	override func tearDown() {
 		
-    }
-
-    func test_emptySetsAreEqual() {
+	}
+	
+	func test_emptySetsAreEqual() {
 		let set1 = LWWElementSet(elements: [Int]())
 		let set2 = LWWElementSet(elements: [Int]())
 		
 		XCTAssert(set1 == set2, "Empty sets are not equal")
-    }
-
+	}
+	
 	func test_initialValueSetsAreEqual() {
 		let set1 = LWWElementSet(elements: [1, 2, 3, 4])
 		let set2 = LWWElementSet(elements: [2, 3, 1, 4])
@@ -125,3 +125,4 @@ class TestTimestampManager: TimestampManager {
 		return index
 	}
 }
+
