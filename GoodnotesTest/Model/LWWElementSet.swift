@@ -8,6 +8,10 @@
 
 import UIKit
 
+/// LWW Element Set Implementation
+///
+/// - Parameter T: atomic element for the set. Restricted to Hashable
+///
 class LWWElementSet<T: Hashable> {
 
 	typealias TimestampSet = [T: TimeInterval]
@@ -20,7 +24,7 @@ class LWWElementSet<T: Hashable> {
 	}
 	
 	init(elements: [T]) {
-		elements.forEach { add($0) }
+		elements.forEach { _ = add($0) }
 	}
 	
 	private init(addSet: TimestampSet, removeSet: TimestampSet) {
@@ -28,16 +32,26 @@ class LWWElementSet<T: Hashable> {
 		self.removeSet = removeSet
 	}
 	
-	var currentTimestamp: TimeInterval {
-		return Date().timeIntervalSince1970
-	}
 	
-	private var values: [T] {
+	// MARK: - API
+
+	
+	/// Getter for plain set values
+	///
+	/// - Returns: values existing in set
+	public var values: [T] {
 		return addSet.keys.filter { addSet[$0]! > (removeSet[$0] ?? 0.0) }
 	}
 	
-	// MARK: - API
+	/// Manager for timestamps
+	///
+	/// - Returns: timestamp manager
+	public var timestampManager = TimestampManager()
 	
+	/// Checks if element exists in the set
+	///
+	/// - Parameter element: the element to find
+	/// - Returns: true if elements exists in set, false overwise
 	public func lookup(_ element: T) -> Bool {
 		guard let addTimestamp = addSet[element] else {
 			return false
@@ -50,18 +64,36 @@ class LWWElementSet<T: Hashable> {
 		return addTimestamp > removeTimestamp
 	}
 	
-	public func add(_ element: T) {
-		addSet[element] = currentTimestamp
+	/// Adds an element into the set
+	///
+	/// - Parameter element and timestamp: the element to add and the timestamp of addition
+	/// - Returns: self object so operation sequences could be created
+	@discardableResult
+	public func add(_ element: T, time: TimeInterval? = nil) -> Self {
+		addSet[element] = time ?? timestampManager.currentTimestamp
+		
+		return self
 	}
 	
-	public func remove(_ element: T) {
-		if !lookup(element) {
-			return
+	/// Removes an element into the set
+	///
+	/// - Parameter element and timestamp: the element to add and the timestamp of removal
+	/// - Returns: self object so operation sequences could be created
+	@discardableResult
+	public func remove(_ element: T, time: TimeInterval? = nil) -> Self {
+		guard lookup(element) else {
+			return self
 		}
-		removeSet[element] = currentTimestamp
+		removeSet[element] = time ?? timestampManager.currentTimestamp
+		
+		return self
 	}
 	
-	public func merge(_ other: LWWElementSet<T>) -> LWWElementSet<T> {
+	/// Merges two structures into one
+	///
+	/// - Parameter other: the second set to merge current one with
+	/// - Returns: merged element set
+	public func merging(_ other: LWWElementSet<T>) -> LWWElementSet<T> {
 		let newAddSet = LWWElementSet.merge(set1: addSet, set2: other.addSet)
 		let newRemoveSet = LWWElementSet.merge(set1: removeSet, set2: other.removeSet)
 		
@@ -85,5 +117,12 @@ extension LWWElementSet {
 		}) { timestamp1, timestamp2 in
 			return max(timestamp1, timestamp2)
 		}
+	}
+}
+
+// MARK: - Timestamp Manager
+class TimestampManager {
+	var currentTimestamp: TimeInterval {
+		return Date().timeIntervalSince1970
 	}
 }

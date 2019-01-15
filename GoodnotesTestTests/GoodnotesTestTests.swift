@@ -51,10 +51,7 @@ class GoodnotesTestTests: XCTestCase {
 	
 	func test_addRemoveElements() {
 		let set = LWWElementSet<Int>()
-		set.add(2)
-		set.remove(3)
-		set.add(3)
-		set.remove(2)
+		set.add(2).remove(3).add(3).remove(2)
 		
 		XCTAssert(set.lookup(2) == false, "Element 2 is not in set")
 		XCTAssert(set.lookup(3) == true, "Element 3 is in set")
@@ -62,10 +59,7 @@ class GoodnotesTestTests: XCTestCase {
 	
 	func test_addRemoveWithDifferentResult() {
 		let set = LWWElementSet<Int>()
-		set.add(2)
-		set.remove(3)
-		set.add(3)
-		set.remove(2)
+		set.add(2).remove(3).add(3).remove(2)
 		
 		XCTAssert(set.lookup(2) == false, "Element 2 is not in set")
 		XCTAssert(set.lookup(3) == true, "Element 3 is in set")
@@ -75,7 +69,7 @@ class GoodnotesTestTests: XCTestCase {
 		let set1 = LWWElementSet(elements: [1, 2, 3, 4])
 		let set2 = LWWElementSet(elements: [2, 3, 1, 4])
 		let set3 = LWWElementSet(elements: [1, 2, 3, 4])
-		let resultSet = set1.merge(set2)
+		let resultSet = set1.merging(set2)
 		
 		XCTAssert(set3 == resultSet, "Merge result with same values is incorrect")
 	}
@@ -84,7 +78,7 @@ class GoodnotesTestTests: XCTestCase {
 		let set1 = LWWElementSet(elements: [1, 2, 3])
 		let set2 = LWWElementSet(elements: [2, 3, 4])
 		let set3 = LWWElementSet(elements: [1, 2, 3, 4])
-		let resultSet = set1.merge(set2)
+		let resultSet = set1.merging(set2)
 		
 		XCTAssert(set3 == resultSet, "Merge result with initial values is incorrect")
 	}
@@ -92,53 +86,42 @@ class GoodnotesTestTests: XCTestCase {
 	func test_mergeSets() {
 		let set1 = LWWElementSet<Int>()
 		let set2 = LWWElementSet<Int>()
-		let set3 = LWWElementSet(elements: [1, 3, 4])
+		let set3 = LWWElementSet(elements: [1, 2, 4])
 		
-		set1.add(1)
-		set1.add(2)
-		set1.add(3)
+		// one can set timestamp manager so no neet to set time on each -add or -remove
+		let manager = TestTimestampManager()
+		set1.timestampManager = manager
+		set2.timestampManager = manager
 		
-		set1.remove(2)
+		set1.add(1).add(2).add(3).remove(2)
+		set2.add(2).add(3).add(4).remove(3)
 		
-		set2.add(2)
-		set2.add(3)
-		set2.add(4)
-		
-		let resultSet = set1.merge(set2)
+		let resultSet = set1.merging(set2)
 		
 		XCTAssert(set3 == resultSet, "Merge result is incorrect")
 	}
 	
 	func test_complexMergeSetsWithTimestamps() {
-		let set1 = LWWTestElementSet(timestamps: [1.0, 3.0])
-		let set2 = LWWTestElementSet(timestamps: [4.0, 5.0])
+		let set1 = LWWElementSet<Int>()
+		let set2 = LWWElementSet<Int>()
 		let set3 = LWWElementSet(elements: [1, 3])
 		
-		set1.add(1)
-		set1.remove(1)
+		// in this test its more consistent to set time manually;
+		// '1' would be removed on set1 before addition on set2 in terms of time, so it should exists in result
+		set1.add(1, time: 1.0).remove(1, time: 2.0)
+		set2.add(1, time: 3.0).add(3, time: 4.0)
 		
-		set2.add(1)
-		set2.add(3)
-		
-		let resultSet = set1.merge(set2)
+		let resultSet = set1.merging(set2)
 		
 		XCTAssert(set3 == resultSet, "Merge result is incorrect")
 	}
 }
 
-// Mock class which allows to manually set timestamps for operations
-class LWWTestElementSet: LWWElementSet<Int> {
-	var timestamps: [TimeInterval]
+class TestTimestampManager: TimestampManager {
+	var index = 0.0
 	
-	init(timestamps: [TimeInterval]) {
-		self.timestamps = timestamps
-		super.init()
-	}
-	
-	var index = 0
 	override var currentTimestamp: TimeInterval {
-		let timestamp = timestamps[index]
-		index += 1
-		return timestamp
+		index += 1.0
+		return index
 	}
 }
